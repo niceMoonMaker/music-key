@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+		<title></title>
+		<style type="text/css">
+			html,
+			body {
+				padding: 0;
+				margin: 0;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			.container {
+				display: flex;
+				justify-content: space-around;
+				align-items: stretch;
+				align-content: center;
+				margin: auto;
+				width: 100vw;
+				height: 100vh;
+				background: lightcyan;
+			}
+
+			section {
+				width: 30vw;
+				margin: auto;
+			}
+
+			section>span {
+				display: block;
+				position: relative;
+				width: 100%;
+				height: 12vh;
+				line-height: 12vh;
+				text-align: center;
+				background: #ccc;
+				margin: 1vh auto;
+				vertical-align: top;
+				font-size: 30px;
+				font-family: "microsoft yahei";
+			}
+
+			.level0::after {
+				content: " ";
+				position: absolute;
+				display: block;
+				height: 10px;
+				width: 10px;
+				border-radius: 10px;
+				background: linear-gradient(#1ce40e, #a0a0e4);
+				font-size: 40px;
+				top: 15px;
+				left: 50%;
+				transform: translateX(-50%);
+			}
+
+			.level2::before {
+				content: " ";
+				position: absolute;
+				display: block;
+				height: 10px;
+				width: 10px;
+				border-radius: 10px;
+				background: linear-gradient(#f2c1e3, #612f94);
+				top: 15px;
+				left: 50%;
+				transform: translateX(-50%);
+			}
+		</style>
+	</head>
+	<body>
+		<!-- <button onclick="play1()">play1</button>
+		<button onclick="play2()">play1</button> -->
+		<div class="container"></div>
+	</body>
+	<script type="text/javascript">
+		const VOICE_MAP = {
+			0: [261.63, 293.67, 329.63, 349.23, 391.99, 440, 493.88],
+			1: [523.25, 587.33, 659.26, 698.46, 783.99, 880, 987.77],
+			2: [1046.5, 1174.66, 1318.51, 1396.92, 1567.98, 1760, 1975.52]
+		};
+
+		function handleStart({
+			target
+		}, level) {
+			const {
+				dataset: {
+					index
+				}
+			} = target;
+			if (index !== undefined) {
+				console.log(index, "start");
+				playAudio.call(target, index, level);
+			}
+		};
+
+		function handleStop({
+			target
+		}) {
+			const {
+				dataset: {
+					index
+				}
+			} = target;
+			if (index !== undefined) {
+				console.log(index, "stop");
+				stopAudio.call(target);
+			}
+		};
+	
+		function renderBtns(level) {
+			let i = 0;
+			let res = "";
+			while (i < 7) {
+				let getNum = function() {
+					return parseInt(Math.random() * 255);
+				}
+				let random = function() {
+					let rgb1 = getNum();
+					let rgb2 = getNum();
+					let rgb3 = getNum();
+					return {
+						rgb1,
+						rgb2,
+						rgb3
+					}
+				}
+				let getColor = function(a) {
+					let color;
+					let {
+						rgb1,
+						rgb2,
+						rgb3
+					} = random();
+					if ((rgb1 + rgb2 + rgb3) > 10 && (rgb1 + rgb2 + rgb3) < 650) {
+						return color = `rgba(${rgb1},${rgb2},${rgb3},${a?a:1})`;
+					} else {
+						return getColor()
+					}
+
+				}
+				// getAllColor() {
+				// 	let color = getColor();
+				// 	let bgcolor = getColor(0.8);
+				// 	return {color,bgcolor}
+				// }
+				// let o=getAllColor()
+				// let {
+				// 	color,
+				// 	bgcolor
+				// } = o;
+				// let bgcolor1 = getColor(0.3);
+				c1=getColor();c2=getColor(0.3);c3=getColor(0.9);
+				res +=
+					`<span style="color:${c1};background:linear-gradient(${c2},${c3});" class="btn level${level}" data-index=${i}>${i+1}</span>`;
+				i++;
+			}
+			const container = document.createElement("section");
+			container.className = `container${level}`;
+			const particalStart = e => handleStart(e, level);
+			container.addEventListener("mousedown", e => {
+				particalStart(e);
+				container.addEventListener("mouseout", handleStop);
+			});
+			container.addEventListener("mouseup", handleStop);
+			container.innerHTML += res;
+			document.getElementsByClassName('container')[0].appendChild(container);
+		}
+
+		renderBtns(0);
+		renderBtns(1);
+		renderBtns(2);
+
+		// 音频上下文
+		const audioCtx = new AudioContext();
+
+		function playAudio(index, level) {
+			// 如果之前正在播，那就清掉之前的音频
+			this.gainNode &&
+				this.gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+			this.oscillator && this.oscillator.stop(audioCtx.currentTime + 1);
+			// 创建音调控制对象
+			this.oscillator = audioCtx.createOscillator();
+			// 创建音量控制对象
+			this.gainNode = audioCtx.createGain();
+			// 音调音量关联
+			this.oscillator.connect(this.gainNode);
+			// 音量和设备关联
+			this.gainNode.connect(audioCtx.destination);
+			// 音调类型指定为正弦波。sin好听一些
+			this.oscillator.type = "sine";
+			// 设置音调频率
+			this.oscillator.frequency.value = VOICE_MAP[level][index];
+			// 先把当前音量设为0
+			this.gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+			// 0.01秒时间内音量从刚刚的0变成1，线性变化
+			this.gainNode.gain.linearRampToValueAtTime(
+				1,
+				audioCtx.currentTime + 0.01
+			);
+			// 声音开始
+			this.oscillator.start(audioCtx.currentTime);
+		}
+
+		function stopAudio() {
+			// 0.8秒后停止声音
+			this.gainNode &&
+				this.gainNode.gain.exponentialRampToValueAtTime(
+					0.001,
+					audioCtx.currentTime + 0.8
+				);
+			this.oscillator && this.oscillator.stop(audioCtx.currentTime + 0.8);
+			this.oscillator = this.gainNode = null;
+		}
+		// 先来一个sleep，肯定需要使用延迟的
+		function sleep(delay = 80) {
+			return new Promise(r =>
+				setTimeout(() => {
+					r();
+				}, delay)
+			);
+		}
+		/**
+		 * @params arr 歌谱数组
+		 * @example
+		 * { level: 0, index: 0 } 低音的哆
+		 * { stop: true } 下一个循环什么都没有
+		 * { delay: true } 下一个循环什么都不做
+		 */
+		async function diyPlay(arr) {
+			let cursor = 0;
+			const a = [...arr];
+			const containers = document.querySelectorAll("section");
+			let ele;
+			// 一个个遍历歌曲数组
+			while (arr.length) {
+				// 先延迟一下，就可以避免上一个音戛然而止了
+				await sleep(300);
+				const current = a.shift();
+				// 留一个delay接口，即是延长一下上一个音
+				if (current && current.delay) {
+					continue;
+				}
+				// 下一个按键，停下之前的音
+				if (ele) {
+					// 手动用js触发原生事件停止音频
+					const evPre = document.createEvent("MouseEvents");
+					evPre.initMouseEvent("mouseout", true, true, window);
+					ele.dispatchEvent(evPre);
+				}
+				if (!arr.length || !current) {
+					return;
+				}
+				// 
+				if (current.stop) {
+					continue;
+				}
+				await sleep(50); // 加一点延迟使得多个连续相同的音自然一些
+				const ev = document.createEvent("MouseEvents");
+				ele = containers[current.level].children[current.index - 1];
+				// 手动用js触发原生事件开始音频
+				if (ele) {
+					ev.initMouseEvent("mousedown", true, true, window);
+					ele.dispatchEvent(ev);
+				}
+			}
+		}
+
+		// 《地铁等待》
+		function play1() {
+			diyPlay([{
+				"level": 2,
+				"index": 3
+			}, {
+				"level": 2,
+				"index": 4
+			}, {
+				"level": 2,
+				"index": 5
+			}, {
+				"level": 2,
+				"index": 5
+			}, {
+				"level": 2,
+				"index": 5
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"level": 2,
+				"index": 2
+			}, {
+				"level": 2,
+				"index": 2
+			}, {
+				"level": 2,
+				"index": 5
+			}, {
+				"delay": true
+			}, {
+				"stop": true
+			}, {
+				"stop": true
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 1,
+				"index": 7
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 1,
+				"index": 7
+			}, {
+				"delay": true
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"delay": true
+			}, {
+				"stop": true
+			}, {
+				"stop": true
+			}, {
+				"level": 1,
+				"index": 6
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 1,
+				"index": 6
+			}, {
+				"level": 1,
+				"index": 5
+			}, {
+				"level": 1,
+				"index": 5
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"delay": true
+			}, {
+				"stop": true
+			}, {
+				"stop": true
+			}, {
+				"level": 2,
+				"index": 4
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 2,
+				"index": 2
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"delay": true
+			}, {
+				"level": 2,
+				"index": 2
+			}, {
+				"stop": true
+			}, {
+				"stop": true
+			}, {
+				"level": 2,
+				"index": 5
+			}, {
+				"level": 2,
+				"index": 5
+			}, {
+				"level": 2,
+				"index": 5
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"level": 2,
+				"index": 2
+			}, {
+				"delay": true
+			}, {
+				"level": 2,
+				"index": 5
+			}, {
+				"level": 2,
+				"index": 5
+			}, {
+				"level": 2,
+				"index": 2
+			}, {
+				"stop": true
+			}, {
+				"stop": true
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 1,
+				"index": 7
+			}, {
+				"delay": true
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"stop": true
+			}, {
+				"stop": true
+			}, {
+				"level": 1,
+				"index": 6
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 2,
+				"index": 6
+			}, {
+				"level": 1,
+				"index": 5
+			}, {
+				"delay": true
+			}, {
+				"level": 1,
+				"index": 6
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 2,
+				"index": 2
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"stop": true
+			}, {
+				"stop": true
+			}, {
+				"level": 2,
+				"index": 4
+			}, {
+				"level": 2,
+				"index": 3
+			}, {
+				"level": 2,
+				"index": 1
+			}, {
+				"level": 2,
+				"index": 2
+			}, {
+				"delay": true
+			}, {
+				"delay": true
+			}, {
+				"stop": true
+			}]);
+
+		}
+
+		function play2() {
+			// 抄得匆匆忙忙，后面有一些不准确的
+			diyPlay([{
+					level: 1,
+					index: 3
+				}, // 我听见雨落在青青草地
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 1,
+					index: 6
+				}, // 我听见远方下课钟声响起
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					delay: true
+				},
+
+				{
+					level: 1,
+					index: 3
+				}, // 可是我没有听见你的声音
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					delay: true
+				},
+
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					delay: true
+				},
+
+				{
+					level: 1,
+					index: 6
+				}, // 认真呼唤我姓名
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 1,
+					index: 3
+				}, // 爱上你的时候不懂感情
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					delay: true
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					stop: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					stop: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					delay: true
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 1,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 2
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 2
+				},
+
+				{
+					delay: true
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				// { delay: true },
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				// { stop: true },
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 4
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 3
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 5
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 1,
+					index: 7
+				},
+				{
+					delay: true
+				},
+				{
+					level: 1,
+					index: 6
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 2,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 5
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					delay: true
+				},
+				{
+					stop: true
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 4
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					delay: true
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					level: 2,
+					index: 3
+				},
+				{
+					level: 2,
+					index: 2
+				},
+				{
+					delay: true
+				},
+				{
+					level: 2,
+					index: 1
+				},
+				{
+					delay: true
+				},
+			]);
+
+		}
+	</script>
+	<script type="text/javascript">
+		!function(e, t, a) {
+    function r() {
+        for (var e = 0; e < s.length; e++) s[e].alpha <= 0 ? (t.body.removeChild(s[e].el), s.splice(e, 1)) : (s[e].y--, s[e].scale += .004, s[e].alpha -= .013, s[e].el.style.cssText = "left:" + s[e].x + "px;top:" + s[e].y + "px;opacity:" + s[e].alpha + ";transform:scale(" + s[e].scale + "," + s[e].scale + ") rotate(45deg);background:" + s[e].color + ";z-index:99999");
+        requestAnimationFrame(r)
+    }
+    function n() {
+        var t = "function" == typeof e.onclick && e.onclick;
+        e.onclick = function(e) {
+            t && t(),
+            o(e)
+        }
+    }
+    function o(e) {
+        var a = t.createElement("div");
+        a.className = "heart",
+        s.push({
+            el: a,
+            x: e.clientX - 5,
+            y: e.clientY - 5,
+            scale: 1,
+            alpha: 1,
+            color: c()
+        }),
+        t.body.appendChild(a)
+    }
+    function i(e) {
+        var a = t.createElement("style");
+        a.type = "text/css";
+        try {
+            a.appendChild(t.createTextNode(e))
+        } catch(t) {
+            a.styleSheet.cssText = e
+        }
+        t.getElementsByTagName("head")[0].appendChild(a)
+    }
+    function c() {
+        return "rgb(" + ~~ (255 * Math.random()) + "," + ~~ (255 * Math.random()) + "," + ~~ (255 * Math.random()) + ")"
+    }
+    var s = [];
+    e.requestAnimationFrame = e.requestAnimationFrame || e.webkitRequestAnimationFrame || e.mozRequestAnimationFrame || e.oRequestAnimationFrame || e.msRequestAnimationFrame ||
+    function(e) {
+        setTimeout(e, 1e3 / 60)
+    },
+    i(".heart{width: 20px;height: 20px;position: fixed;background: #f00;transform: rotate(45deg);-webkit-transform: rotate(45deg);-moz-transform: rotate(45deg);}.heart:after,.heart:before{content: '';width: inherit;height: inherit;background: inherit;border-radius: 50%;-webkit-border-radius: 50%;-moz-border-radius: 50%;position: fixed;}.heart:after{top: -10px;}.heart:before{left: -10px;}"),
+    n(),
+    r()
+} (window, document);
+	</script>
+</html>
